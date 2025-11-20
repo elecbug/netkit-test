@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -33,11 +32,11 @@ func main() {
 			p, err := p2p.GenerateNetwork(
 				er,
 				func() float64 {
-					return float64(p2p.NormalRand(100, 50, rand.NewSource(time.Now().UnixNano())))
-					// return float64(p2p.UniformRand(10, 500, rand.NewSource(time.Now().UnixNano())))
+					return float64(p2p.NormalRandom(100, 50))
 				},
 				func() float64 {
-					return float64(p2p.LogNormalRand(500, 0.1, rand.NewSource(time.Now().UnixNano())))
+					// return float64(p2p.ParetoRandom(500, 2.0))
+					return float64(p2p.ExponentialRandom(0.002))
 				},
 				&p2p.Config{},
 			)
