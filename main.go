@@ -16,8 +16,9 @@ func main() {
 	sg.SetSeedRandom()
 
 	mu := sync.Mutex{}
-	couter := make(map[string]float64)
-	try := 1000
+	counter := make(map[string]float64)
+	try := 2000
+	networkSize := 1000
 
 	wg := sync.WaitGroup{}
 	wg.Add(try)
@@ -27,16 +28,16 @@ func main() {
 
 			println("Round:", i)
 
-			er := sg.ErdosRenyiGraph(1000, 6.0/1000.0, true)
+			er := sg.ErdosRenyiGraph(networkSize, 6.0/float64(networkSize), true)
 
 			p, err := p2p.GenerateNetwork(
 				er,
 				func() float64 {
-					return float64(p2p.NormalRandom(100, 50))
+					return float64(p2p.NormalRandom(1000, 500))
 				},
 				func() float64 {
-					// return float64(p2p.ParetoRandom(500, 2.0))
-					return float64(p2p.ExponentialRandom(0.002))
+					return float64(p2p.ParetoRandom(500, 2.0))
+					// return float64(p2p.ExponentialRandom(0.002))
 				},
 				&p2p.Config{},
 			)
@@ -56,7 +57,7 @@ func main() {
 				panic(err)
 			}
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(20 * time.Second)
 			cancel()
 
 			ts := p.FirstMessageReceptionTimes("Hello, world!")
@@ -76,16 +77,31 @@ func main() {
 
 				// println(secStr)
 				mu.Lock()
-				couter[secStr] += 1.0 / float64(try)
+				counter[secStr] += 1.0 / float64(try)
 				mu.Unlock()
 			}
+
+			// if i == 0 {
+			// 	println("Sample Data")
+
+			// 	for j := 0; j < int(len(p.PeerIDs())); j++ {
+
+			// 		info, err := p.MessageInfo(p.PeerIDs()[j], "Hello, world!")
+
+			// 		if err != nil {
+			// 			panic(err)
+			// 		}
+
+			// 		fmt.Printf("%v\n", info)
+			// 	}
+			// }
 		}()
 	}
 
 	wg.Wait()
 
 	fmt.Println("Time(sec)\tCount")
-	for secStr, count := range couter {
+	for secStr, count := range counter {
 		fmt.Printf("%s\t\t%.2f\n", secStr, count)
 	}
 }
