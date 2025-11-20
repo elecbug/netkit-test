@@ -1,0 +1,55 @@
+import matplotlib.pyplot as plt
+
+def plot_cumulative_from_file(path):
+    times = []
+    counts = []
+
+    # 파일 읽기
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 쉼표 또는 공백 자동 인식
+            if "," in line:
+                t, c = line.split(",")
+            else:
+                t, c = line.split()
+
+            try:
+                float(t)
+                float(c)
+            except ValueError:
+                continue
+
+            times.append(float(t))
+            counts.append(float(c))
+
+    # 시간으로 정렬
+    data = sorted(zip(times, counts), key=lambda x: x[0])
+    times_sorted = [t for t, _ in data]
+    counts_sorted = [c for _, c in data]
+
+    # 누적합 계산
+    cumulative = []
+    s = 0
+    for v in counts_sorted:
+        s += v
+        cumulative.append(s)
+
+    # 그래프 그리기
+    plt.figure(figsize=(10, 6))
+    plt.plot(times_sorted, cumulative, marker="o", markersize=2)
+    plt.xlabel("Time (sec)")
+    plt.ylabel("Cumulative Count")
+    plt.title("Cumulative Sum Over Time")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("cumulative_plot.png")
+
+# 실행 예시
+# plot_cumulative_from_file("data.txt")
+
+if __name__ == "__main__":
+    plot_cumulative_from_file("result.log")
