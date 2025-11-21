@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
+import os
 
-def plot_cumulative_from_file(path):
+def plot_cumulative_from_file(path, output_path):
     times = []
     counts = []
 
@@ -46,10 +47,12 @@ def plot_cumulative_from_file(path):
     plt.title("Cumulative Sum Over Time")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("cumulative_plot.png")
+    plt.savefig(output_path)
 
 # 실행 예시
 # plot_cumulative_from_file("data.txt")
 
 if __name__ == "__main__":
-    plot_cumulative_from_file("result.log")
+    file_name = os.sys.argv[1] if len(os.sys.argv) > 1 else "result.log"
+    output_name = os.sys.argv[2] if len(os.sys.argv) > 2 else "cumulative_plot.png"
+    plot_cumulative_from_file(file_name, output_name)
