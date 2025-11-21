@@ -1,0 +1,91 @@
+
+// func floodingLoop(try, networkSize, degree int) {
+// 	sg := standard_graph.NewStandardGraph()
+// 	sg.SetSeedRandom()
+
+// 	mu := sync.Mutex{}
+// 	counter := make(map[string]float64)
+// 	otherData := make(map[string]float64)
+
+// 	wg := sync.WaitGroup{}
+// 	sem := make(chan struct{}, 5) // limit to 5 concurrent goroutines
+// 	wg.Add(try)
+
+// 	for i := 0; i < try; i++ {
+// 		sem <- struct{}{}
+
+// 		go func(i int) {
+// 			defer wg.Done()
+// 			defer func() { <-sem }()
+
+// 			println("Round:", i)
+
+// 			er := sg.ErdosRenyiGraph(networkSize, float64(degree)/float64(networkSize), true)
+
+// 			p, err := p2p.GenerateNetwork(
+// 				er,
+// 				func() float64 {
+// 					return float64(p2p.NormalRandom(100, 50))
+// 				},
+// 				func() float64 {
+// 					return float64(p2p.ParetoRandom(50, 2.0))
+// 					// return float64(p2p.ExponentialRandom(0.002))
+// 				},
+// 				&p2p.Config{},
+// 			)
+
+// 			if err != nil {
+// 				panic(err)
+// 			}
+
+// 			ctx, cancel := context.WithCancel(context.Background())
+
+// 			p.RunNetworkSimulation(ctx)
+
+// 			err = p.Publish(p.PeerIDs()[0], "Hello, world!", p2p.Flooding, nil)
+
+// 			if err != nil {
+// 				panic(err)
+// 			}
+
+// 			time.Sleep(5 * time.Second)
+// 			cancel()
+
+// 			ts := p.FirstMessageReceptionTimes("Hello, world!")
+// 			sort.Slice(ts, func(i, j int) bool {
+// 				return ts[i].Before(ts[j])
+// 			})
+
+// 			for _, t := range ts {
+// 				sec := float32(t.Sub(ts[0]).Seconds())
+// 				secStr := fmt.Sprintf("%.3f", sec)
+
+// 				mu.Lock()
+// 				counter[secStr] += 1.0 / float64(try)
+// 				mu.Unlock()
+// 			}
+
+// 			mu.Lock()
+// 			otherData["dup"] += float64(p.NumberOfDuplicateMessages("Hello, world!")) / float64(try)
+// 			otherData["reach"] += p.Reachability("Hello, world!") / float64(try)
+// 			mu.Unlock()
+// 		}(i)
+// 	}
+
+// 	fmt.Println("Waiting for all goroutines to finish... [flooding]")
+// 	wg.Wait()
+
+// 	fs, err := os.Create("temp/flooding_result.log")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer fs.Close()
+
+// 	fmt.Fprintf(fs, "Duplicate Messages\t%.2f\n", otherData["dup"])
+// 	fmt.Fprintf(fs, "Reachability\t%.4f\n", otherData["reach"])
+// 	fmt.Fprintf(fs, "Time(sec)\tCount\n")
+
+// 	for secStr, count := range counter {
+// 		fmt.Fprintf(fs, "%s\t\t%.2f\n", secStr, count)
+// 	}
+// }

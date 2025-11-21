@@ -1,15 +1,17 @@
 import os
 import re
+import json
 import matplotlib.pyplot as plt
 
-# 로그 파일 이름 패턴: hopwave_result-[INTERVAL]-[COUNT].log
-FILE_PATTERN = re.compile(r"hopwave_result-(\d+)-(\d+)\.log")
+# 로그 파일 이름 패턴: hopwave_result-[NETWORK_SIZE]-[DEGREE]-[INTERVAL]-[COUNT].log
+FILE_PATTERN = re.compile(r"hopwave_result-(\d+)-(\d+)-(\d+)-(\d+)\.log")
 
 
 def parse_log(filepath):
     """로그 파일에서 Duplicate Messages와 Reachability 값을 읽어 반환"""
     duplicate = None
     reachability = None
+    average_reception_time = None
 
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
@@ -21,7 +23,10 @@ def parse_log(filepath):
             elif lower.startswith("reachability"):
                 reachability = float(line.split("\t")[-1].strip())
 
-    return duplicate, reachability
+            elif lower.startswith("average reception time"):
+                average_reception_time = float(line.split("\t")[-1].strip())
+
+    return duplicate, reachability, average_reception_time
 
 
 def reachability_to_size(r):
@@ -41,6 +46,7 @@ def plot_from_folder(folder_path, output_path):
     results = {}
     # interval → (count, duplicate, reachability)
     interval_group = {}
+    json_data = []
 
     # -----------------------------
     # ⑴ 로그 파일 읽기
@@ -50,23 +56,40 @@ def plot_from_folder(folder_path, output_path):
         if not match:
             continue
 
-        interval = int(match.group(1))
-        count = int(match.group(2))
+        network_size = int(match.group(1))
+        degree = int(match.group(2))
+        interval = int(match.group(3))
+        count = int(match.group(4))
         full_path = os.path.join(folder_path, filename)
 
-        duplicate, reachability = parse_log(full_path)
+        duplicate, reachability, average_reception_time = parse_log(full_path)
         if duplicate is None:
             continue
 
         # COUNT 기준
         if count not in results:
             results[count] = []
-        results[count].append((interval, duplicate, reachability))
-
+        results[count].append((interval, duplicate, reachability, average_reception_time))
+        
         # INTERVAL 기준
         if interval not in interval_group:
             interval_group[interval] = []
-        interval_group[interval].append((count, duplicate, reachability))
+        interval_group[interval].append((count, duplicate, reachability, average_reception_time))
+
+        json_data.append({
+            "network_size": network_size,
+            "degree": degree,
+            "interval": interval,
+            "count": count,
+            "duplicate": duplicate,
+            "reachability": reachability,
+            "average_reception_time": average_reception_time,
+        })
+
+    save_json_path = output_path + ".json"
+
+    with open(save_json_path, "w", encoding="utf-8") as jf:
+        json.dump(json_data, jf)
 
     # -----------------------------
     # ⑵ 두 개 subplot 그림 생성
@@ -115,7 +138,6 @@ def plot_from_folder(folder_path, output_path):
     plt.tight_layout()
     plt.savefig(output_path)
     print(f"[+] Saved plot → {output_path}")
-
 
 # --------------------------------------
 # main
