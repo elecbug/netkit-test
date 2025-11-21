@@ -14,17 +14,17 @@ import (
 )
 
 func main() {
-	try := 10
+	try := 30
 	networkSize := 1000
-	closer := 8
+	degree := 20
 
-	for _, hopwaveInterval := range []int{2, 3, 4, 5} {
-		for _, hopwaveCount := range []int{2, 3, 4, 5, 6, 7} {
-			hopwaveLoop(try, networkSize, closer, hopwaveInterval, hopwaveCount)
+	for _, hopwaveInterval := range []int{2, 3, 4, 5, 6, 7, 8, 9, 10} {
+		for _, hopwaveCount := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19} {
+			hopwaveLoop(try, networkSize, degree, hopwaveInterval, hopwaveCount)
 		}
 	}
 
-	floodingLoop(try, networkSize, closer)
+	floodingLoop(try, networkSize, degree)
 }
 
 func customHopWaveProtocol(msg p2p.Message, known []p2p.PeerID, sent []p2p.PeerID, received []p2p.PeerID, params map[string]any) *[]p2p.PeerID {
@@ -67,12 +67,13 @@ func customHopWaveProtocol(msg p2p.Message, known []p2p.PeerID, sent []p2p.PeerI
 	}
 }
 
-func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount int) {
+func hopwaveLoop(try, networkSize, degree int, hopwaveInterval int, hopwaveCount int) {
 	sg := standard_graph.NewStandardGraph()
 	sg.SetSeedRandom()
 
 	mu := sync.Mutex{}
 	counter := make(map[string]float64)
+	otherData := make(map[string]float64)
 
 	wg := sync.WaitGroup{}
 	sem := make(chan struct{}, 5) // limit to 5 concurrent goroutines
@@ -87,7 +88,7 @@ func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount
 
 			println("Round:", i)
 
-			er := sg.ErdosRenyiGraph(networkSize, float64(closer)/float64(networkSize), true)
+			er := sg.ErdosRenyiGraph(networkSize, float64(degree)/float64(networkSize), true)
 
 			p, err := p2p.GenerateNetwork(
 				er,
@@ -136,6 +137,10 @@ func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount
 				counter[secStr] += 1.0 / float64(try)
 				mu.Unlock()
 			}
+			mu.Lock()
+			otherData["dup"] += float64(p.NumberOfDuplicateMessages("Hello, world!")) / float64(try)
+			otherData["reach"] += p.Reachability("Hello, world!") / float64(try)
+			mu.Unlock()
 		}(i)
 	}
 
@@ -148,6 +153,8 @@ func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount
 	}
 	defer fs.Close()
 
+	fmt.Fprintf(fs, "Duplicate Messages\t%.2f\n", otherData["dup"])
+	fmt.Fprintf(fs, "Reachability\t%.4f\n", otherData["reach"])
 	fmt.Fprintf(fs, "Time(sec)\tCount\n")
 
 	for secStr, count := range counter {
@@ -155,12 +162,13 @@ func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount
 	}
 }
 
-func floodingLoop(try, networkSize, closer int) {
+func floodingLoop(try, networkSize, degree int) {
 	sg := standard_graph.NewStandardGraph()
 	sg.SetSeedRandom()
 
 	mu := sync.Mutex{}
 	counter := make(map[string]float64)
+	otherData := make(map[string]float64)
 
 	wg := sync.WaitGroup{}
 	sem := make(chan struct{}, 5) // limit to 5 concurrent goroutines
@@ -175,7 +183,7 @@ func floodingLoop(try, networkSize, closer int) {
 
 			println("Round:", i)
 
-			er := sg.ErdosRenyiGraph(networkSize, float64(closer)/float64(networkSize), true)
+			er := sg.ErdosRenyiGraph(networkSize, float64(degree)/float64(networkSize), true)
 
 			p, err := p2p.GenerateNetwork(
 				er,
@@ -219,6 +227,11 @@ func floodingLoop(try, networkSize, closer int) {
 				counter[secStr] += 1.0 / float64(try)
 				mu.Unlock()
 			}
+
+			mu.Lock()
+			otherData["dup"] += float64(p.NumberOfDuplicateMessages("Hello, world!")) / float64(try)
+			otherData["reach"] += p.Reachability("Hello, world!") / float64(try)
+			mu.Unlock()
 		}(i)
 	}
 
@@ -231,6 +244,8 @@ func floodingLoop(try, networkSize, closer int) {
 	}
 	defer fs.Close()
 
+	fmt.Fprintf(fs, "Duplicate Messages\t%.2f\n", otherData["dup"])
+	fmt.Fprintf(fs, "Reachability\t%.4f\n", otherData["reach"])
 	fmt.Fprintf(fs, "Time(sec)\tCount\n")
 
 	for secStr, count := range counter {

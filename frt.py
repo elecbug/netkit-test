@@ -12,11 +12,14 @@ def plot_cumulative_from_file(path, output_path):
             if not line:
                 continue
             
-            # 쉼표 또는 공백 자동 인식
-            if "," in line:
-                t, c = line.split(",")
-            else:
-                t, c = line.split()
+            try:
+                # 쉼표 또는 공백 자동 인식
+                if "," in line:
+                    t, c = line.split(",")
+                else:
+                    t, c = line.split()
+            except ValueError:
+                continue
 
             try:
                 float(t)
