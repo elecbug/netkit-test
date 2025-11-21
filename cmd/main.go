@@ -14,21 +14,17 @@ import (
 )
 
 func main() {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	defer wg.Wait()
+	try := 10
+	networkSize := 1000
+	closer := 8
 
-	go func() {
-		defer wg.Done()
-		hopwaveLoop()
-	}()
+	for _, hopwaveInterval := range []int{2, 3, 4, 5} {
+		for _, hopwaveCount := range []int{2, 3, 4, 5, 6, 7} {
+			hopwaveLoop(try, networkSize, closer, hopwaveInterval, hopwaveCount)
+		}
+	}
 
-	go func() {
-		defer wg.Done()
-		floodingLoop()
-	}()
-
-	wg.Wait()
+	floodingLoop(try, networkSize, closer)
 }
 
 func customHopWaveProtocol(msg p2p.Message, known []p2p.PeerID, sent []p2p.PeerID, received []p2p.PeerID, params map[string]any) *[]p2p.PeerID {
@@ -71,38 +67,41 @@ func customHopWaveProtocol(msg p2p.Message, known []p2p.PeerID, sent []p2p.PeerI
 	}
 }
 
-func hopwaveLoop() {
+func hopwaveLoop(try, networkSize, closer int, hopwaveInterval int, hopwaveCount int) {
 	sg := standard_graph.NewStandardGraph()
 	sg.SetSeedRandom()
 
 	mu := sync.Mutex{}
 	counter := make(map[string]float64)
-	try := 1000
-	networkSize := 1000
 
 	wg := sync.WaitGroup{}
+	sem := make(chan struct{}, 5) // limit to 5 concurrent goroutines
 	wg.Add(try)
+
 	for i := 0; i < try; i++ {
-		go func() {
+		sem <- struct{}{}
+
+		go func(i int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 
 			println("Round:", i)
 
-			er := sg.ErdosRenyiGraph(networkSize, 6.0/float64(networkSize), true)
+			er := sg.ErdosRenyiGraph(networkSize, float64(closer)/float64(networkSize), true)
 
 			p, err := p2p.GenerateNetwork(
 				er,
 				func() float64 {
-					return float64(p2p.NormalRandom(1000, 500))
+					return float64(p2p.NormalRandom(100, 50))
 				},
 				func() float64 {
-					return float64(p2p.ParetoRandom(500, 2.0))
+					return float64(p2p.ParetoRandom(50, 2.0))
 					// return float64(p2p.ExponentialRandom(0.002))
 				},
 				&p2p.Config{
 					CustomParams: map[string]any{
-						"hopwave_interval": 2,
-						"hopwave_count":    3,
+						"hopwave_interval": hopwaveInterval,
+						"hopwave_count":    hopwaveCount,
 					},
 				},
 			)
@@ -112,7 +111,6 @@ func hopwaveLoop() {
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 
 			p.RunNetworkSimulation(ctx)
 
@@ -122,7 +120,7 @@ func hopwaveLoop() {
 				panic(err)
 			}
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(5 * time.Second)
 			cancel()
 
 			ts := p.FirstMessageReceptionTimes("Hello, world!")
@@ -138,12 +136,13 @@ func hopwaveLoop() {
 				counter[secStr] += 1.0 / float64(try)
 				mu.Unlock()
 			}
-		}()
+		}(i)
 	}
 
+	fmt.Println("Waiting for all goroutines to finish... [hopwave interval:", hopwaveInterval, "count:", hopwaveCount, "]")
 	wg.Wait()
 
-	fs, err := os.Create("temp/hopwave_result.log")
+	fs, err := os.Create(fmt.Sprintf("temp/hopwave_result-%d-%d.log", hopwaveInterval, hopwaveCount))
 	if err != nil {
 		panic(err)
 	}
@@ -156,32 +155,35 @@ func hopwaveLoop() {
 	}
 }
 
-func floodingLoop() {
+func floodingLoop(try, networkSize, closer int) {
 	sg := standard_graph.NewStandardGraph()
 	sg.SetSeedRandom()
 
 	mu := sync.Mutex{}
 	counter := make(map[string]float64)
-	try := 1000
-	networkSize := 1000
 
 	wg := sync.WaitGroup{}
+	sem := make(chan struct{}, 5) // limit to 5 concurrent goroutines
 	wg.Add(try)
+
 	for i := 0; i < try; i++ {
-		go func() {
+		sem <- struct{}{}
+
+		go func(i int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 
 			println("Round:", i)
 
-			er := sg.ErdosRenyiGraph(networkSize, 6.0/float64(networkSize), true)
+			er := sg.ErdosRenyiGraph(networkSize, float64(closer)/float64(networkSize), true)
 
 			p, err := p2p.GenerateNetwork(
 				er,
 				func() float64 {
-					return float64(p2p.NormalRandom(1000, 500))
+					return float64(p2p.NormalRandom(100, 50))
 				},
 				func() float64 {
-					return float64(p2p.ParetoRandom(500, 2.0))
+					return float64(p2p.ParetoRandom(50, 2.0))
 					// return float64(p2p.ExponentialRandom(0.002))
 				},
 				&p2p.Config{},
@@ -192,7 +194,6 @@ func floodingLoop() {
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 
 			p.RunNetworkSimulation(ctx)
 
@@ -202,7 +203,7 @@ func floodingLoop() {
 				panic(err)
 			}
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(5 * time.Second)
 			cancel()
 
 			ts := p.FirstMessageReceptionTimes("Hello, world!")
@@ -218,9 +219,10 @@ func floodingLoop() {
 				counter[secStr] += 1.0 / float64(try)
 				mu.Unlock()
 			}
-		}()
+		}(i)
 	}
 
+	fmt.Println("Waiting for all goroutines to finish... [flooding]")
 	wg.Wait()
 
 	fs, err := os.Create("temp/flooding_result.log")

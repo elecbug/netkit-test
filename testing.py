@@ -46,6 +46,8 @@ def plot_cumulative_from_file(path, output_path):
     plt.ylabel("Cumulative Count")
     plt.title("Cumulative Sum Over Time")
     plt.grid(True)
+    plt.xlim(left=0, right=5.25)
+    plt.ylim(bottom=0, top=1000)
     plt.tight_layout()
     plt.savefig(output_path)
 
